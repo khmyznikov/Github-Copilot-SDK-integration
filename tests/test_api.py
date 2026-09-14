@@ -18,6 +18,7 @@ from copilot.session_events import PermissionRequestMcp
 from custom_components.github_copilot.api import (
     CliInstallationStatus,
     GitHubCopilotApiClient,
+    GitHubCopilotApiClientAuthenticationError,
     GitHubCopilotApiClientCommunicationError,
     GitHubCopilotApiClientError,
 )
@@ -225,8 +226,143 @@ class CopilotAPITests(IsolatedAsyncioTestCase):
         """Surface session.error exceptions raised by SDK send_and_wait."""
         context = await self.api.async_create_session()
         self.session.send_and_wait.side_effect = RuntimeError("MCP unavailable")
-        with self.assertRaisesRegex(GitHubCopilotApiClientError, "MCP unavailable"):
+        with self.assertRaisesRegex(GitHubCopilotApiClientError, "failed to respond"):
             await self.api.async_send_prompt(context.session_id, "Read the lamp")
+
+    async def test_lifecycle_logs_exclude_content_and_credentials(self) -> None:
+        """Log useful milestones without copying prompts, headers, or full URLs."""
+        private_value = "private-fixture-do-not-log"
+        api = GitHubCopilotApiClient(
+            model="auto",
+            client_options={
+                "cli_url": f"http://bridge:8000/{private_value}",
+                "github_token": private_value,
+            },
+            mcp_config=json.dumps(
+                {
+                    "mcpServers": {
+                        "ha": {
+                            **self.servers["ha"],
+                            "headers": {"Authorization": private_value},
+                        }
+                    }
+                }
+            ),
+        )
+        self.session.send_and_wait.return_value = SimpleNamespace(
+            data=SimpleNamespace(content=private_value)
+        )
+        with (
+            patch(
+                "custom_components.github_copilot.api.copilot.CopilotClient",
+                autospec=True,
+                return_value=self.sdk,
+            ),
+            self.assertLogs("custom_components.github_copilot", level="DEBUG") as logs,
+        ):
+            await api.async_test_connection()
+            context = await api.async_create_session()
+            await api.async_send_prompt(context.session_id, private_value)
+            await api.async_close()
+        text = "\n".join(logs.output)
+        for message in (
+            "Connecting to Copilot CLI (remote bridge)",
+            "Copilot transport connected; checking SDK authentication status",
+            "Copilot SDK reports authenticated (remote bridge)",
+            "model access is confirmed only when a request succeeds",
+            "requested model=auto, configured MCP servers=1",
+            "model response received",
+            "Sending Copilot request",
+            "Copilot response received",
+            "Copilot session closed",
+            "Copilot SDK client stopped",
+        ):
+            self.assertIn(message, text)
+        self.assertNotIn(private_value, text)
+        self.assertNotIn("http://bridge", text)
+        self.sdk.start.assert_awaited_once()
+        self.sdk.get_auth_status.assert_awaited_once()
+
+    async def test_unauthenticated_runtime_does_not_log_success(self) -> None:
+        """Token presence must not become an authentication-success message."""
+        api = GitHubCopilotApiClient(client_options={"cli_url": "http://bridge:8000"})
+        self.sdk.get_auth_status.return_value = SimpleNamespace(isAuthenticated=False)
+        with (
+            patch(
+                "custom_components.github_copilot.api.copilot.CopilotClient",
+                return_value=self.sdk,
+            ),
+            self.assertLogs("custom_components.github_copilot", level="INFO") as logs,
+            self.assertRaises(GitHubCopilotApiClientAuthenticationError),
+        ):
+            await api.async_create_session()
+        text = "\n".join(logs.output)
+        self.assertIn("reports no authenticated GitHub credentials", text)
+        self.assertNotIn("reports authenticated (", text)
+        self.assertNotIn("session started", text)
+        self.sdk.stop.assert_awaited_once()
+
+    async def test_connection_failures_do_not_copy_sensitive_sdk_errors(self) -> None:
+        """Connection and auth exceptions can contain credentials or request data."""
+        for operation in ("start", "get_auth_status"):
+            with self.subTest(operation=operation):
+                private_value = "private-sdk-error-fixture"
+                api = GitHubCopilotApiClient(
+                    client_options={"cli_url": "http://bridge:8000"}
+                )
+                method = getattr(self.sdk, operation)
+                method.side_effect = RuntimeError(private_value)
+                try:
+                    with (
+                        patch(
+                            "custom_components.github_copilot.api.copilot.CopilotClient",
+                            return_value=self.sdk,
+                        ),
+                        self.assertLogs(
+                            "custom_components.github_copilot", level="INFO"
+                        ) as logs,
+                        self.assertRaises(GitHubCopilotApiClientError) as caught,
+                    ):
+                        await api.async_create_session()
+                finally:
+                    method.side_effect = None
+                self.assertNotIn(private_value, "\n".join(logs.output))
+                self.assertNotIn(private_value, str(caught.exception))
+                self.assertTrue(caught.exception.__suppress_context__)
+                self.assertNotIn("reports authenticated (", "\n".join(logs.output))
+
+    async def test_prompt_failure_does_not_log_content_or_completion(self) -> None:
+        """Failed requests surface a safe error, not a success-shaped milestone."""
+        context = await self.api.async_create_session()
+        private_value = "private-prompt-error-fixture"
+        self.session.send_and_wait.side_effect = RuntimeError(private_value)
+        with (
+            self.assertLogs("custom_components.github_copilot", level="DEBUG") as logs,
+            self.assertRaises(GitHubCopilotApiClientError) as caught,
+        ):
+            await self.api.async_send_prompt(context.session_id, private_value)
+        self.assertNotIn(private_value, "\n".join(logs.output))
+        self.assertNotIn(private_value, str(caught.exception))
+        self.assertTrue(caught.exception.__suppress_context__)
+        self.assertNotIn("response received", "\n".join(logs.output))
+
+    async def test_failed_cleanup_does_not_log_success_or_error_contents(self) -> None:
+        """Session and client cleanup failures remain visible but do not leak data."""
+        context = await self.api.async_create_session()
+        private_value = "private-cleanup-error-fixture"
+        self.session.disconnect.side_effect = RuntimeError(private_value)
+        self.sdk.stop.side_effect = RuntimeError(private_value)
+        with self.assertLogs("custom_components.github_copilot", level="INFO") as logs:
+            with self.assertRaises(GitHubCopilotApiClientError):
+                await self.api.async_end_session(context.session_id)
+            with self.assertRaises(GitHubCopilotApiClientError):
+                await self.api.async_close()
+        text = "\n".join(logs.output)
+        self.assertIn("Failed to close Copilot session", text)
+        self.assertIn("Failed to stop Copilot SDK client", text)
+        self.assertNotIn(private_value, text)
+        self.assertNotIn("session closed", text)
+        self.assertNotIn("client stopped", text)
 
     async def test_remote_client_does_not_receive_token_or_download_cli(self) -> None:
         """Remote mode uses a URI connection and ignores local token/path settings."""

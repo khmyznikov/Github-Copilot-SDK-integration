@@ -457,7 +457,7 @@
         <!-- ── Bridge Add-on ── -->
         <section id="bridge-addon">
             <h2>GitHub Copilot Bridge Add-on</h2>
-            <p>The <strong>GitHub Copilot Bridge</strong> add-on runs the CLI in a dedicated container that the integration connects to over the internal network. Add-on <strong>v3.12.1</strong> uses CLI <strong>v1.0.83</strong>, matching the integration's SDK <strong>1.0.13</strong>.</p>
+            <p>The <strong>GitHub Copilot Bridge</strong> add-on runs the CLI in a dedicated container that the integration connects to over the internal network. Add-on <strong>v3.12.2</strong> uses CLI <strong>v1.0.83</strong>, matching the integration's SDK <strong>1.0.13</strong>.</p>
 
             <div class="callout tip">
                 <strong>💡 Recommended for Home Assistant OS</strong>
@@ -471,7 +471,7 @@
                 <li>🔐 Token-based authentication via environment variables (no interactive prompts)</li>
                 <li>🏗️ Multi-architecture support: <code>amd64</code> and <code>aarch64</code></li>
                 <li>✅ SHA256 checksum verification for CLI binary integrity</li>
-                <li>🛡️ Hardened auth probe with timeout protection</li>
+                <li>🛡️ Clear configured-token status, with authentication checked by SDK clients</li>
             </ul>
 
             <h3>Installing the Add-on</h3>
@@ -582,11 +582,15 @@ http://a1b2c3d4-github-copilot-bridge:8000</code></pre>
             </ul>
 
             <h3>Authentication Errors</h3>
+            <p>Bridge v3.12.2 reports that a GitHub token is configured without running an unreliable startup probe. The integration checks SDK authentication status and confirms model access with a real response during setup. The separate <code>COPILOT_CONNECTION_TOKEN</code> warning concerns client-to-bridge access, not GitHub credentials. Keep port 8000 on a trusted internal network.</p>
             <ul>
                 <li>Verify your fine-grained GitHub token is valid and has <strong>Copilot Requests &rarr; Read and write</strong> permission.</li>
                 <li>Ensure your GitHub Copilot subscription is active.</li>
                 <li>Try regenerating your personal access token.</li>
             </ul>
+
+            <h3>Connection and Session Logs</h3>
+            <p>Integration v1.0.8 logs connection and session lifecycle events in <strong>Home Assistant logs</strong> under <code>custom_components.github_copilot</code>, not in the bridge's Log tab. Enable that logger at <code>info</code>, or temporarily <code>debug</code> for request milestones. Prompts, responses, and credentials are not included in those lifecycle messages. See the <a href="https://github.com/tserra30/Github-Copilot-SDK-integration/blob/main/README.md#understanding-bridge-and-integration-logs">logging guide</a>.</p>
 
             <h3>SDK Installation Issues (Home Assistant OS)</h3>
             <p>Home Assistant installs the official <strong><code>github-copilot-sdk==1.0.13</code></strong> from PyPI in both modes. Its universal <code>py3-none-any</code> wheel supports Home Assistant Core's Alpine/musl container; no custom wheel is required.</p>

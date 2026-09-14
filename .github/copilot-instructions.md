@@ -105,6 +105,8 @@ Verify actual entity state changes, not just model text claiming success. Check 
 - CLI 1.0.83 requires `--host 0.0.0.0` for cross-container access; this flag is hidden from help. Validate from a separate network namespace, never only shared host networking.
 - Keep the CLI version and architecture-specific SHA256 checksums compatible with the SDK
 - Preserve amd64/aarch64 support, token-based auth, feature detection, and bounded startup retries
+- Do not use a model prompt as a startup authentication probe. Distinguish configured tokens, SDK-reported auth status, and successful model requests; keep bridge connection-token warnings visible.
+- Log safe lifecycle metadata in the integration, not prompts, responses, headers, full URLs, or raw SDK exception payloads.
 - Bump `addon/config.yaml` for significant runtime changes and maintain `addon/CHANGELOG.md` using Keep a Changelog format
 - Add-on `mcp_config` remains available to other bridge clients; do not confuse it with integration-level tool authorization
 

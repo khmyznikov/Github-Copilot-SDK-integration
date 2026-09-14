@@ -40,7 +40,7 @@ Requires Home Assistant 2025.2.4 or later. Use a current stable Home Assistant r
 
 The **GitHub Copilot Bridge** add-on runs the CLI in a dedicated container that the integration connects to over the internal network. Bridge mode needs no CLI binary or runtime download inside Home Assistant Core.
 
-**Current Version**: v3.12.1 (Copilot CLI v1.0.83)
+**Current Version**: v3.12.2 (Copilot CLI v1.0.83)
 
 **Key Features**:
 - 🐳 **Containerized Copilot CLI server** running on port 8000 (internal network only)
@@ -49,7 +49,7 @@ The **GitHub Copilot Bridge** add-on runs the CLI in a dedicated container that 
 - 🏗️ **Multi-architecture support** for amd64 and aarch64 systems
 - ✅ **SHA256 checksum verification** for CLI binary integrity
 - 🚀 **Auto-start on boot** with configurable GitHub token
-- 🛡️ **Hardened authentication** with timeout protection to prevent startup blocking
+- 🛡️ **Clear authentication status** without model requests during bridge startup
 - 🎯 **Feature detection** for CLI flags to support multiple Copilot CLI versions
 - 🧰 **Custom MCP support** via integration settings or add-on options for other clients
 
@@ -243,7 +243,31 @@ Installing a CLI only in the SSH/Terminal add-on does not make it available insi
 - In local mode, update the integration token.
 - Check runtime logs for invalid credentials, plan restrictions, or rate limits. Respect any reported retry delay.
 
-An **"auth probe failed"** warning in bridge logs is inconclusive. Token-only setups can still work, but do not assume the warning is harmless: check subsequent runtime logs and a real conversation request.
+Bridge v3.12.2 no longer runs an LLM prompt or legacy command as an authentication probe. **"GitHub token configured" means only that a token was supplied**, not that GitHub accepted it. The integration checks authentication through the SDK, and its setup connection test confirms model access with a real response. Older bridge versions' **"auth probe failed"** warning came from an unreliable probe.
+
+### Understanding Bridge and Integration Logs
+
+The three authentication layers are separate:
+
+| Credential | Connection |
+|---|---|
+| GitHub fine-grained PAT (`github_token`, supplied as `GH_TOKEN`) | Bridge to GitHub Copilot |
+| Home Assistant long-lived token in MCP headers | MCP client to Home Assistant |
+| Optional `COPILOT_CONNECTION_TOKEN` | SDK client to bridge TCP endpoint |
+
+The CLI's **"No COPILOT_CONNECTION_TOKEN was set"** warning does not indicate a missing GitHub PAT. It means any client that can reach the bridge's TCP endpoint can connect. Port 8000 is not published to the host by default; keep the endpoint on a trusted internal network. The integration does not currently expose a connection-token option: setting it only on the bridge would prevent the integration from connecting, because both sides must use the same separate secret. The warning is intentionally not suppressed.
+
+The **bridge's Log tab** shows startup and CLI process output, not every integration connection or request. **Home Assistant's logs** under `custom_components.github_copilot` contain INFO-level connection, SDK-reported authentication, session start/close, and client-stop messages in integration v1.0.8. A setup test logs success only after receiving a model response and cleaning up its session. Requested model IDs, including `auto`, are configuration metadata, not proof of the model chosen by the runtime.
+
+To see these messages, merge this into your existing `configuration.yaml` logger settings and restart Home Assistant:
+
+```yaml
+logger:
+  logs:
+    custom_components.github_copilot: info
+```
+
+Use `debug` temporarily for request-start/response-received milestones. These integration messages omit prompts, responses, authorization headers, full connection URLs, and raw SDK exception payloads. Upstream SDK/CLI diagnostics are separate; review and redact logs before sharing them. Connection logs are emitted when a connection opens, not for every prompt using that connection.
 
 ### Slow Responses or Timeout Errors
 

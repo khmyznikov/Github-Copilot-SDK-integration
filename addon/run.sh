@@ -13,18 +13,18 @@ fi
 # GH_TOKEN is picked up automatically by the CLI without interactive prompts.
 export GH_TOKEN="${GITHUB_TOKEN}"
 
-# Verify that the CLI can read auth state before attempting to start the server.
-# Newer Copilot CLI versions use prompt mode for this check, while older
-# versions support the dedicated 'auth status' command. Both checks are wrapped
-# in a timeout so a CLI that waits for user input cannot block add-on startup.
-# These checks are best-effort only: a GH_TOKEN-only setup can still work even
-# if this probe fails.
-bashio::log.info "Verifying GitHub Copilot CLI authentication..."
-if timeout 10 copilot -p "auth status" --silent >/dev/null 2>&1 || timeout 10 copilot auth status >/dev/null 2>&1; then
-    bashio::log.info "Authentication probe completed."
+bashio::log.info "GitHub token configured via GH_TOKEN; not validated during bridge startup."
+bashio::log.info "SDK clients check authentication and model access when they connect and send a request."
+bashio::log.info "Copilot CLI runtime:"
+copilot --version
+
+if [[ -n "${COPILOT_CONNECTION_TOKEN:-}" ]]; then
+    bashio::log.info "Bridge connection-token authentication is configured; SDK clients must provide the matching secret."
 else
-    bashio::log.warning "Copilot CLI auth probe failed. This can be expected with token-only setups. Proceeding to start the server; check server logs if authentication fails at runtime."
+    bashio::log.info "Bridge connection-token authentication is not configured. The CLI warning about COPILOT_CONNECTION_TOKEN is separate from GitHub authentication."
+    bashio::log.info "Any client that can reach port 8000 may connect; keep this port on a trusted internal network."
 fi
+bashio::log.info "Integration connection/session messages appear in Home Assistant logs under custom_components.github_copilot, not in this bridge log."
 
 # Feature-detect optional CLI flags so the script works across pinned CLI versions.
 # --no-auto-update: suppresses self-update checks that can cause unexpected behaviour.
