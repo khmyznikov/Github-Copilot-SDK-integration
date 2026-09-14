@@ -457,7 +457,7 @@
         <!-- ── Bridge Add-on ── -->
         <section id="bridge-addon">
             <h2>GitHub Copilot Bridge Add-on</h2>
-            <p>The <strong>GitHub Copilot Bridge</strong> add-on runs the CLI in a dedicated container that the integration connects to over the internal network. Add-on <strong>v3.12.0</strong> uses CLI <strong>v1.0.83</strong>, matching the integration's SDK <strong>1.0.13</strong>.</p>
+            <p>The <strong>GitHub Copilot Bridge</strong> add-on runs the CLI in a dedicated container that the integration connects to over the internal network. Add-on <strong>v3.12.1</strong> uses CLI <strong>v1.0.83</strong>, matching the integration's SDK <strong>1.0.13</strong>.</p>
 
             <div class="callout tip">
                 <strong>💡 Recommended for Home Assistant OS</strong>
@@ -574,6 +574,7 @@ http://a1b2c3d4-github-copilot-bridge:8000</code></pre>
             <h2>Troubleshooting</h2>
 
             <h3>"Unable to connect to Copilot CLI"</h3>
+            <p>If bridge <strong>v3.12.0</strong> says it is listening but Home Assistant reports connection refused, upgrade the bridge to <strong>v3.12.1</strong>. This fixes its loopback-only listener without publishing port 8000 to the host. The bridge is updated separately from the HACS integration.</p>
             <p>This means the Copilot CLI is not reachable. Two options:</p>
             <ul>
                 <li><strong>Option A (Recommended)</strong> — Install and start the <a href="#bridge-addon">GitHub Copilot Bridge add-on</a>, then enter its URL in the <strong>Copilot CLI URL</strong> field.</li>

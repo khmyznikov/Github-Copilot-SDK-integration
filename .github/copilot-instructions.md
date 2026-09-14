@@ -102,6 +102,7 @@ Verify actual entity state changes, not just model text claiming success. Check 
 ### Bridge Add-on (`addon/`)
 
 - Run the CLI as a headless server on port 8000 on the internal Supervisor network
+- CLI 1.0.83 requires `--host 0.0.0.0` for cross-container access; this flag is hidden from help. Validate from a separate network namespace, never only shared host networking.
 - Keep the CLI version and architecture-specific SHA256 checksums compatible with the SDK
 - Preserve amd64/aarch64 support, token-based auth, feature detection, and bounded startup retries
 - Bump `addon/config.yaml` for significant runtime changes and maintain `addon/CHANGELOG.md` using Keep a Changelog format

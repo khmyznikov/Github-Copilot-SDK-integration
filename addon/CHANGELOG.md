@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v3.12.1] - 2026-09-14
+
+### Fixed
+- Bind the CLI to `0.0.0.0:8000` inside the add-on using CLI 1.0.83's supported `--host` option. The previous help-based `--bind` detection left it listening only on `127.0.0.1`, causing connection refusals from Home Assistant in another container.
+- Preserve the bounded retry loop when the CLI exits with an error under Bashio's `errexit` setting.
+
 ## [v3.12.0] - 2026-09-09
 
 ### Changed
@@ -144,7 +150,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 The bridge add-on is designed to work seamlessly with the GitHub Copilot Home Assistant integration:
 
-- **v3.12.0 (current)**: Uses CLI v1.0.83, matching the integration's upstream `github-copilot-sdk==1.0.13` universal wheel from PyPI. No patched wheel is required; update the integration and bridge together.
+- **v3.12.1 (current)**: Uses CLI v1.0.83 with cross-container binding fixed, matching the integration's upstream `github-copilot-sdk==1.0.13` universal wheel from PyPI. No patched wheel is required; update the integration and bridge together.
+- **v3.12.0**: Uses the same SDK/CLI pairing but only listens on loopback; upgrade the bridge to v3.12.1 for connections from Home Assistant in another container.
 - **v3.11.0 (historical)**: Used integration v1.0.7 with the former patched `github-copilot-sdk 0.1.22+ha` wheel
 - **v3.10.2**: Compatible with integration v1.0.7 using the patched `github-copilot-sdk 0.1.22+ha` wheel (auto-installed; works on all platforms including HA OS)
 - **v3.10.1**: Compatible with integration v1.0.7 using the patched `github-copilot-sdk 0.1.22+ha` wheel (auto-installed; works on all platforms including HA OS)
@@ -164,7 +171,8 @@ For best results, always use the latest versions of both the add-on and the inte
 - The add-on URL format is `http://<hostname>:8000` where hostname can be found in the add-on Info tab
 - The bridge add-on is especially useful for Home Assistant OS users where manual CLI installation is challenging
 
-[Unreleased]: https://github.com/tserra30/Github-Copilot-SDK-integration/compare/v3.12.0...HEAD
+[Unreleased]: https://github.com/tserra30/Github-Copilot-SDK-integration/compare/v3.12.1...HEAD
+[v3.12.1]: https://github.com/tserra30/Github-Copilot-SDK-integration/compare/v3.12.0...v3.12.1
 [v3.12.0]: https://github.com/tserra30/Github-Copilot-SDK-integration/compare/v3.11.0...v3.12.0
 [v3.11.0]: https://github.com/tserra30/Github-Copilot-SDK-integration/compare/v3.10.2...v3.11.0
 [v3.10.2]: https://github.com/tserra30/Github-Copilot-SDK-integration/compare/v3.10.1...v3.10.2

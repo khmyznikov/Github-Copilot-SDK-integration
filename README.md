@@ -40,7 +40,7 @@ Requires Home Assistant 2025.2.4 or later. Use a current stable Home Assistant r
 
 The **GitHub Copilot Bridge** add-on runs the CLI in a dedicated container that the integration connects to over the internal network. Bridge mode needs no CLI binary or runtime download inside Home Assistant Core.
 
-**Current Version**: v3.12.0 (Copilot CLI v1.0.83)
+**Current Version**: v3.12.1 (Copilot CLI v1.0.83)
 
 **Key Features**:
 - 🐳 **Containerized Copilot CLI server** running on port 8000 (internal network only)
@@ -218,6 +218,8 @@ The Python SDK is required in **both** modes:
 If an old manual CLI installation or `COPILOT_CLI_PATH` override is selected, update it to a compatible version or remove the stale override so the SDK can manage its runtime. Do not reinstall old patched wheels or use boot-time binary-download automations.
 
 ### "Unable to connect to Copilot CLI" Error
+
+**Bridge v3.12.0 logs "listening on port 8000", but HA reports connection refused:** upgrade the bridge add-on to **v3.12.1**. Version 3.12.0 bound the CLI to the container's loopback interface; v3.12.1 binds to `0.0.0.0:8000` on the internal network. No host port exposure or token change is needed. HACS updates the Python integration, not the separate bridge add-on.
 
 **Bridge mode**:
 

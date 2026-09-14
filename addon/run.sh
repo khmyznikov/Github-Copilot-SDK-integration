@@ -27,13 +27,10 @@ else
 fi
 
 # Feature-detect optional CLI flags so the script works across pinned CLI versions.
-# --bind 0.0.0.0  : ensures the server is reachable from other Supervisor-network containers.
 # --no-auto-update: suppresses self-update checks that can cause unexpected behaviour.
 # --log-level     : controls server verbosity.
 # Use an array for the full argument list to avoid word-splitting issues.
 # `|| true` prevents the script from aborting if `copilot --help` exits non-zero.
-# --bind is only advertised in the headless/server sub-command help in some CLI
-# versions (e.g. v1.0.9), so capture both global and headless help texts.
 COPILOT_HELP=$(copilot --help 2>&1 || true)
 COPILOT_HEADLESS_HELP=$(copilot --headless --help 2>&1 || true)
 # Returns 0 if the given long flag name appears at the start of a line in the
@@ -57,11 +54,9 @@ validate_mcp_config_file() {
 
     grep -qE '^[[:space:]]*\{' "${config_file}" && grep -qE '"mcpServers"[[:space:]]*:' "${config_file}"
 }
-COPILOT_ARGS=(--headless --port 8000)
-# --bind may only appear under the headless sub-command help.
-if has_flag "${COPILOT_HEADLESS_HELP}" bind || has_flag "${COPILOT_HELP}" bind; then
-    COPILOT_ARGS+=(--bind 0.0.0.0)
-fi
+# CLI 1.0.83 defaults to loopback; its supported --host flag is hidden from help.
+# Bind inside the add-on network namespace, without publishing a host port.
+COPILOT_ARGS=(--headless --host 0.0.0.0 --port 8000)
 if has_flag "${COPILOT_HELP}" no-auto-update; then
     COPILOT_ARGS+=(--no-auto-update)
 fi
@@ -119,9 +114,10 @@ RETRY_DELAY=5
 ATTEMPT=1
 
 while true; do
-    bashio::log.info "Starting GitHub Copilot CLI server on port 8000 (attempt ${ATTEMPT})..."
-    copilot "${COPILOT_ARGS[@]}"
-    EXIT_CODE=$?
+    bashio::log.info "Starting GitHub Copilot CLI server on 0.0.0.0:8000 (attempt ${ATTEMPT})..."
+    # Bashio enables errexit, so capture failure explicitly to reach the retry loop.
+    EXIT_CODE=0
+    copilot "${COPILOT_ARGS[@]}" || EXIT_CODE=$?
 
     if [ "${EXIT_CODE}" -eq 0 ]; then
         bashio::log.info "GitHub Copilot CLI server exited normally. Stopping add-on."
