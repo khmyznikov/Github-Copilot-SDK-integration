@@ -16,6 +16,7 @@ from .api import (
     GitHubCopilotApiClientAuthenticationError,
     GitHubCopilotApiClientCommunicationError,
     GitHubCopilotApiClientError,
+    GitHubCopilotApiClientReasoningError,
 )
 from .const import CONF_MCP_CONFIG, LOGGER
 
@@ -211,6 +212,15 @@ class GitHubCopilotConversationEntity(conversation.ConversationEntity):
                 "Unable to connect to GitHub Copilot. "
                 "Please check if the Copilot CLI is installed and running, "
                 "and verify your network connection.",
+            )
+        except GitHubCopilotApiClientReasoningError:
+            LOGGER.error("Configured reasoning effort is unavailable for this model.")
+            error_result = self._create_error_result(
+                language,
+                conversation_id,
+                "The configured reasoning effort is unavailable for this model. "
+                "Open GitHub Copilot Configure and choose a supported level "
+                "or Model default.",
             )
         except GitHubCopilotApiClientError as err:
             LOGGER.error(
